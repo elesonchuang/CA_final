@@ -325,7 +325,7 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 endmodule
 
 
-// the ALU, use 32 bits input inA, inB, and 3 bits control signal.
+// the ALU, use 32 bits input inA, inB, and 4 bits control signal.
 
 module ALU (inA, inB, alu_out, zero, control); 
 	input [31:0] inA, inB;
@@ -333,30 +333,39 @@ module ALU (inA, inB, alu_out, zero, control);
 	output zero;
 	reg zero;
 	reg [31:0] alu_out;
-	input [2:0] control;
-	always @ (control or inA or inB)
-	    begin
-            case (control)
-            3'b000:begin  
-                    zero<=0; 
-                    alu_out<=inA&inB;  //bit by bit and 
+	input [3:0] control;
+	always @ (*) begin
+        zero = 1'b0;
+        case (control)
+            //bit by bit and 
+            4'b0000:begin  
+                // zero <= 0; 
+                alu_out <= inA & inB;  
             end
-            3'b001:begin 
-                    zero<=0; 
-                    alu_out<=inA|inB; // bit by bit or 
+            // bit by bit or 
+            4'b0001:begin 
+                // zero <= 0; 
+                alu_out <= inA | inB; 
             end
-            3'b010:begin 
-                    zero<=0; 
-                    alu_out<=inA+inB; // add, ignore overflow
+            // add, ignore overflow
+            4'b0010:begin 
+                // zero <= 0; 
+                alu_out <= inA + inB; 
             end
-            3'b011:begin  // beq and sub
-                    alu_out<=inA-inB;  // sub
-                    zero<=(inA==inB)? 1 : 0;  // check if inA and inB are equal
+            // beq and sub
+            4'b0110:begin  
+                alu_out <= inA - inB;  // sub
+                zero <= (inA == inB) ? 1: 0;  // check if inA and inB are equal
+            end
+            // slti
+            4'b0111: begin
+                alu_out <= ($signed(inA) < $signed(inB)) ? 32'b1: 32'b0;
+                // zero <= 0;
             end
             default:begin 
-                    zero<=0; 
-                    alu_out<=inA; 
+                // zero <= 0; 
+                alu_out <= inA; 
             end
-            endcase
+        endcase
 	end
 endmodule
