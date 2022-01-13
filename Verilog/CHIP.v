@@ -34,7 +34,8 @@ module CHIP(clk,
 
     // Todo: other wire/reg
     wire [6:0] opcode;
-
+    wire [3:0] ALU_ctrl;
+    wire PCSrc;
     //---------------------------------------//
     // Do not modify this part!!!            //
     reg_file reg0(                           //
@@ -50,7 +51,6 @@ module CHIP(clk,
     //---------------------------------------//
     
     // Todo: any combinational/sequential circuit
-
         //register file input 
     always @(*) begin
         assign rs1 = mem_rdata_I[19:15];
@@ -59,57 +59,100 @@ module CHIP(clk,
     end
 
         // opcode signal 
-    wire Branch, AluSrc, Jump;
-    always @(*) begin
-        assign opcode = mem_rdata_I[6:0];
-        case (opcode)
-            7'b0010111:begin//AUIPC
-                assign Branch = 0;
-                assign Jump = 0;
-            end 
-            7'b1101111:begin//JAL
-                assign Branch = 0;
-                assign Jump = 1;
-            end
-            7'b1100111:begin//JALR
-                assign Branch = 0;
-                assign Jump = 1; 
-            end
-            7'b1100011:begin//BEQ
-                assign Branch = 1;
-                assign Jump = 0; 
-            end
-            7'b0000011:begin//LW
-                assign Branch = 0;
-                assign Jump = 0; 
-            end
-            7'b0100011:begin://SW
-                assign Branch = 0;
-                assign Jump = 0; 
-            end
-            7'b0010011:begin//ADDI
-                assign Branch = 0;
-                assign Jump = 0; 
-            end
-            7'b0010011:begin//SLTI
-                assign Branch = 0;
-                assign Jump = 0; 
-            end
-            7'b0110011:begin//ADD,SUB
-                assign Branch = 0;
-                assign Jump = 0; 
-            end
-            default: begin
-                assign Branch = 0;
-                assign Jump = 0;
-            end
-        endcase
-    end    
-    
-        //IF stage, PC = PC + 4 or result from the jal, beq immediate 
+    wire Branch, AluSrc, Jump, MemRead, MemWrite;
+    wire [3:0] ALUOp;
+    assign opcode = mem_rdata_I[6:0];
+    case (opcode)
+        //AUIPC
+        7'b0010111:begin
+            assign Branch = 0;
+            assign Jump = 0;
+            assign ALUOp = 4'b0000;
+            assign MemRead = 0;
+            assign MemWrite = 0;
+        end 
+        //JAL
+        7'b1101111:begin
+            assign Branch = 0;
+            assign Jump = 1;
+            assign MemRead = 0;
+            assign MemWrite = 0;
+        end
+        //JALR
+        7'b1100111:begin
+            assign Branch = 0;
+            assign Jump = 1; 
+            assign MemRead = 0;
+            assign MemWrite = 0;
+        end
+        //BEQ
+        7'b1100011:begin
+            assign Branch = 1;
+            assign Jump = 0; 
+            assign MemRead = 0;
+            assign MemWrite = 0;
+        end
+        //LW
+        7'b0000011:begin
+            assign Branch = 0;
+            assign Jump = 0; 
+            assign MemRead = 1;
+            assign MemWrite = 0;
+        end
+        //SW
+        7'b0100011:begin:
+            assign Branch = 0;
+            assign Jump = 0; 
+            assign MemRead = 0;
+            assign MemWrite = 1;
+        end
+        //SLTI , ADDI
+        7'b0010011:begin
+            assign Branch = 0;
+            assign Jump = 0; 
+            assign MemRead = 0;
+            assign MemWrite = 0;
+            case (func3)
+                //addi
+                3'b000:begin
+                    assign ALUOp = 4'b0000;
+                end
+                //slti
+                3'b010:begin
+                    assign ALUOp = 4'b0010;
+                end
+            endcase
+        end
+        //ADD,SUB
+        7'b0110011:begin
+            assign Branch = 0;
+            assign Jump = 0; 
+            assign MemRead = 0;
+            assign MemWrite = 0;
+            case (func7)
+                //add
+                7'b0:begin
+                    assign ALUOp = 4'b0000;
+                end
+                //sub
+                7'b0100000:begin
+                    assign ALUOp = 4'b1000;
+                end
+            endcase
+        end
+        default: begin
+            assign Branch = 0;
+            assign Jump = 0;
+            assign MemRead = 0;
+            assign MemWrite = 0;
+        end
+    endcase
+ 
+    assign ALU_ctrl = (Branch)? 4'b1000 : ((MemRead || MemWrite)? 4'b0000 : ALUOp);
+    assign PCSrc = Jump | (Branch & Zero);  
+    //IF stage, PC = PC + 4 or result from the jal, beq immediate 
     always @(*) begin
         // PCSrc logic, 0:PC=PC+4 | 1:PC=Jump or branch result
-        assign PCSrc = Jump | (Branch & Zero);  
         PC_nxt = (PCSrc) ? (PC + /*TODO: result from the Immediate Gen*/ 32'd0 :PC + 32'd4 );
     end
 
