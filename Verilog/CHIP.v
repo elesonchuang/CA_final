@@ -186,7 +186,7 @@ module CHIP(clk,
 // PC = PC + 4 or result from the jal, beq immediate 
     always @(*) begin
         // PC_nxt =jump: Jump_destination | Branch & Zero: Branch_destination | otherwise:PC+4
-        PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + /*TODO: result from the Immediate Gen*/ 32'd0 :PC + 32'd4 ));
+        PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm :PC + 32'd4 ));
     end
 
 
