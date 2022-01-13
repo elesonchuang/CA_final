@@ -43,7 +43,7 @@ module CHIP(clk,
     //ALU
     wire Zero;
     // control output
-    reg Branch, AluSrc, MemRead, MemWrite;
+    reg Branch, AluSrc, MemRead, MemWrite, MemtoReg, RegWrite;
     reg [2:0] Jump;
     reg [3:0] ALUOp;
     // other wire
@@ -86,6 +86,8 @@ module CHIP(clk,
                 ALUOp = 4'b0000;
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                RegWrite = 1;
                 imm = {mem_rdata_I[31:12], 12'b0};
             end 
             //JAL
@@ -94,6 +96,8 @@ module CHIP(clk,
                 Jump = 2'd1;
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                RegWrite = 1;
                 imm = {{11{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21], 1'b0};
             end
             //JALR
@@ -102,6 +106,8 @@ module CHIP(clk,
                 Jump = 2'd2; 
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                RegWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //BEQ
@@ -110,6 +116,7 @@ module CHIP(clk,
                 Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
+                RegWrite = 0;
                 imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
             end
             //LW
@@ -118,6 +125,8 @@ module CHIP(clk,
                 Jump = 2'd0; 
                 MemRead = 1;
                 MemWrite = 0;
+                MemtoReg = 1;
+                RegWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //SW
@@ -126,6 +135,7 @@ module CHIP(clk,
                 Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 1;
+                RegWrite = 0;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             end
             //SLTI , ADDI
@@ -134,6 +144,8 @@ module CHIP(clk,
                 Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                RegWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
                 case (func3)
                     //addi
@@ -152,6 +164,8 @@ module CHIP(clk,
                 Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                RegWrite = 1;
                 imm = 32'b0;
                 case (func7)
                     //add
