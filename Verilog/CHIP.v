@@ -33,7 +33,8 @@ module CHIP(clk,
     //---------------------------------------//
 
     // Todo: other wire/reg
-    wire [6:0] control;
+    wire [6:0] opcode;
+
     //---------------------------------------//
     // Do not modify this part!!!            //
     reg_file reg0(                           //
@@ -57,11 +58,11 @@ module CHIP(clk,
         assign rd = mem_rdata_I[11:7];
     end
 
-        // control signal 
+        // opcode signal 
     wire Branch, AluSrc, Jump;
     always @(*) begin
-        assign control = mem_rdata_I[6:0];
-        case (control)
+        assign opcode = mem_rdata_I[6:0];
+        case (opcode)
             7'b0010111:begin//AUIPC
                 assign Branch = 0;
                 assign Jump = 0;
@@ -179,12 +180,12 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
     output [63:0] out;
 
     // Definition of states
-    parameter IDLE = 3'd0;
-    parameter MUL  = 3'd1;
-    parameter DIV  = 3'd2;
-    parameter AND = 3'd3;
-    parameter OR = 3'd4;
-    parameter OUT  = 3'd5;
+    localparam IDLE = 3'd0;
+    localparam MUL  = 3'd1;
+    localparam DIV  = 3'd2;
+    localparam AND = 3'd3;
+    localparam OR = 3'd4;
+    localparam OUT  = 3'd5;
 
     // Todo: Wire and reg if needed
     reg  [ 2:0] state, state_nxt;
@@ -325,56 +326,45 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 endmodule
 
 
-// the ALU, use 32 bits input inA, inB, and 4 bits control signal.
+// the ALU, use 64 bits input inA, inB, and 4 bits control signal(generate by the ALU_control).
 
 module ALU (inA, inB, shift_amount, alu_out, zero, control); 
-	input [31:0] inA, inB;
-	output [31:0] alu_out;
+	input [63:0] inA, inB;
+	output [63:0] alu_out;
 	output zero;
 	reg zero;
-	reg [31:0] alu_out;
+	reg [63:0] alu_out;
 	input [3:0] control;
     input [4:0] shift_amount;
 	always @ (*) begin
         zero = 1'b0;
-        case (control)
-            //bit by bit and 
+        case (control) // instruction[30, 14-12]
+            //add
             4'b0000:begin  
-                // zero <= 0; 
-                alu_out <= inA & inB;  
-            end
-            // bit by bit or 
-            4'b0001:begin 
-                // zero <= 0; 
-                alu_out <= inA | inB; 
-            end
-            // add, ignore overflow
-            4'b0010:begin 
-                // zero <= 0; 
                 alu_out <= inA + inB; 
             end
-            // beq and sub
-            4'b0110:begin  
+            // sub and beq
+            4'b1000:begin 
                 alu_out <= inA - inB;  // sub
                 zero <= (inA == inB) ? 1: 0;  // check if inA and inB are equal
             end
             // slti
-            4'b0111: begin
-                alu_out <= ($signed(inA) < $signed(inB)) ? 32'b1: 32'b0;
+            4'b0010: begin
+                alu_out <= ($signed(inA) < $signed(inB)) ? 64'b1: 64'b0;
                 // zero <= 0;
             end
             // slli
-            4'b1000: begin
+            4'b0001: begin
                 alu_out <= inA << shift_amount;
             end
             // srli
-            4'b1001: begin
+            4'b0101: begin
                 alu_out <= inA >> shift_amount;
             end
             default:begin 
-                // zero <= 0; 
-                alu_out <= inA; 
+                alu_out <= 32'b0; 
             end
         endcase
 	end
 endmodule
+
