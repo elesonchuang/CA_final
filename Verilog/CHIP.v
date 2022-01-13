@@ -43,13 +43,14 @@ module CHIP(clk,
     //ALU
     wire Zero;
     // control output
-    reg Branch, AluSrc, MemRead, MemWrite, MemtoReg, RegWrite;
+    reg Branch, AluSrc, MemRead, MemWrite, MemtoReg;
     reg [2:0] Jump;
     reg [3:0] ALUOp;
     // other wire
     wire [31:0] Jump_destination; //the PC address to jump
     reg [31:0] imm; // immediate
-
+    wire AluInb,shamt; // ALU input 2 & slli/srli shift amount
+    wire [31:0] AluResult;
 
     //---------------------------------------//
     // Do not modify this part!!!            //
@@ -84,6 +85,7 @@ module CHIP(clk,
                 Branch = 0;
                 Jump = 2'd0;
                 ALUOp = 4'b0000;
+                Alusrc = 1;
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
@@ -114,6 +116,7 @@ module CHIP(clk,
             7'b1100011:begin
                 Branch = 1;
                 Jump = 2'd0; 
+                Alusrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
                 RegWrite = 0;
@@ -122,7 +125,8 @@ module CHIP(clk,
             //LW
             7'b0000011:begin
                 Branch = 0;
-                Jump = 2'd0; 
+                Jump = 2'd0;
+                Alusrc = 1; 
                 MemRead = 1;
                 MemWrite = 0;
                 MemtoReg = 1;
@@ -133,6 +137,7 @@ module CHIP(clk,
             7'b0100011:begin:
                 Branch = 0;
                 Jump = 2'd0; 
+                Alusrc = 1;
                 MemRead = 0;
                 MemWrite = 1;
                 RegWrite = 0;
@@ -141,7 +146,8 @@ module CHIP(clk,
             //SLTI , ADDI
             7'b0010011:begin
                 Branch = 0;
-                Jump = 2'd0; 
+                Jump = 2'd0;
+                Alusrc = 1; 
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
@@ -162,6 +168,7 @@ module CHIP(clk,
             7'b0110011:begin
                 Branch = 0;
                 Jump = 2'd0; 
+                Alusrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
@@ -196,13 +203,25 @@ module CHIP(clk,
         2'd2: assign Jump_destination = rs1_data + imm;
         default: assign Jump_destination = 32'd0;
     endcase
-//=================IF stage==================
+//=================IF stage==================//
 // PC = PC + 4 or result from the jal, beq immediate 
     always @(*) begin
         // PC_nxt =jump: Jump_destination | Branch & Zero: Branch_destination | otherwise:PC+4
         PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm :PC + 32'd4 ));
     end
-
+//=================EX stage==================//
+    assign AluInb = (Alusrc)?(imm):(rs2_data);
+    ALU alu(
+        .inA(rs1_data), 
+        .inB(AluInb), 
+        .shift_amount(shamt), 
+        .alu_out(AluResult), 
+        .zero(Zero), 
+        .control(ALU_ctrl)
+    );
+//=================Mem stage=================//
+    
+//=================WB stage==================//
 
 
     always @(posedge clk or negedge rst_n) begin
