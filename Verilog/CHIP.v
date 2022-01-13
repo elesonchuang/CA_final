@@ -220,9 +220,13 @@ module CHIP(clk,
         .control(ALU_ctrl)
     );
 //=================Mem stage=================//
-    
-//=================WB stage==================//
 
+    assign mem_addr_D = AluResult;//Address of data/stack memory
+    assign mem_wdata_D = rs2_data;//Data written to data/stack memory
+    assign mem_wen_D = ((MemWrite)?(1):((MemRead)?0:Z);
+
+//=================WB stage==================//
+    assign rd_data = (Jump)? (PC + 32'd4):((MemtoReg)?(mem_rdata_D):(AluResult));//mem_rdata_D:Data read from data/stack memory
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
