@@ -327,13 +327,14 @@ endmodule
 
 // the ALU, use 32 bits input inA, inB, and 4 bits control signal.
 
-module ALU (inA, inB, alu_out, zero, control); 
+module ALU (inA, inB, shift_amount, alu_out, zero, control); 
 	input [31:0] inA, inB;
 	output [31:0] alu_out;
 	output zero;
 	reg zero;
 	reg [31:0] alu_out;
 	input [3:0] control;
+    input [4:0] shift_amount;
 	always @ (*) begin
         zero = 1'b0;
         case (control)
@@ -361,6 +362,14 @@ module ALU (inA, inB, alu_out, zero, control);
             4'b0111: begin
                 alu_out <= ($signed(inA) < $signed(inB)) ? 32'b1: 32'b0;
                 // zero <= 0;
+            end
+            // slli
+            4'b1000: begin
+                alu_out <= inA << shift_amount;
+            end
+            // srli
+            4'b1001: begin
+                alu_out <= inA >> shift_amount;
             end
             default:begin 
                 // zero <= 0; 
