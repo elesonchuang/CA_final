@@ -43,11 +43,12 @@ module CHIP(clk,
     //ALU
     wire Zero;
     // control output
-    reg Branch, AluSrc, Jump, MemRead, MemWrite;
+    reg Branch, AluSrc, MemRead, MemWrite;
+    reg [2:0] Jump;
     reg [3:0] ALUOp;
     // other wire
-    reg [31:0] Jump_destination; //the PC address to jump
-    reg [63:0] imm; // immediate
+    wire [31:0] Jump_destination; //the PC address to jump
+    reg [31:0] imm; // immediate
 
 
     //---------------------------------------//
@@ -81,59 +82,59 @@ module CHIP(clk,
             //AUIPC
             7'b0010111:begin
                 Branch = 0;
-                Jump = 0;
+                Jump = 2'd0;
                 ALUOp = 4'b0000;
                 MemRead = 0;
                 MemWrite = 0;
-                imm = {32'b0, mem_rdata_I[31:12], 12'b0};
+                imm = {mem_rdata_I[31:12], 12'b0};
             end 
             //JAL
             7'b1101111:begin
                 Branch = 0;
-                Jump = 1;
+                Jump = 2'd1;
                 MemRead = 0;
                 MemWrite = 0;
-                imm = {{43{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21], 1'b0};
+                imm = {{11{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21], 1'b0};
             end
             //JALR
             7'b1100111:begin
                 Branch = 0;
-                Jump = 1; 
+                Jump = 2'd2; 
                 MemRead = 0;
                 MemWrite = 0;
-                imm = {{52{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
+                imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //BEQ
             7'b1100011:begin
                 Branch = 1;
-                Jump = 0; 
+                Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
-                imm = {{51{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
+                imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
             end
             //LW
             7'b0000011:begin
                 Branch = 0;
-                Jump = 0; 
+                Jump = 2'd0; 
                 MemRead = 1;
                 MemWrite = 0;
-                imm = {{52{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
+                imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //SW
             7'b0100011:begin:
                 Branch = 0;
-                Jump = 0; 
+                Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 1;
-                imm = {{52{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
+                imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             end
             //SLTI , ADDI
             7'b0010011:begin
                 Branch = 0;
-                Jump = 0; 
+                Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
-                imm = {{52{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
+                imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
                 case (func3)
                     //addi
                     3'b000:begin
@@ -148,9 +149,10 @@ module CHIP(clk,
             //ADD,SUB
             7'b0110011:begin
                 Branch = 0;
-                Jump = 0; 
+                Jump = 2'd0; 
                 MemRead = 0;
                 MemWrite = 0;
+                imm = 32'b0;
                 case (func7)
                     //add
                     7'b0:begin
@@ -164,15 +166,22 @@ module CHIP(clk,
             end
             default: begin
                 Branch = 0;
-                Jump = 0;
+                Jump = 2'd0;
                 MemRead = 0;
                 MemWrite = 0;
-                imm = 64'b0;
+                imm = 32'b0;
             end
         endcase
     end
     assign ALU_ctrl = (Branch)? 4'b1000 : ((MemRead || MemWrite)? 4'b0000 : ALUOp);
     assign PCSrc = (Branch & Zero);  
+    case (Jump)
+        //jal
+        2'd1: assign Jump_destination = PC + imm;
+        //jalr
+        2'd2: assign Jump_destination = rs1_data + imm;
+        default: assign Jump_destination = 32'd0;
+    endcase
 //=================IF stage==================
 // PC = PC + 4 or result from the jal, beq immediate 
     always @(*) begin
@@ -393,14 +402,14 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 endmodule
 
 
-// the ALU, use 64 bits input inA, inB, and 4 bits control signal(generate by the ALU_control).
+// the ALU, use 32 bits input inA, inB, and 4 bits control signal(generate by the ALU_control).
 
 module ALU (inA, inB, shift_amount, alu_out, zero, control); 
-	input [63:0] inA, inB;
-	output [63:0] alu_out;
+	input [31:0] inA, inB;
+	output [31:0] alu_out;
 	output zero;
 	reg zero;
-	reg [63:0] alu_out;
+	reg [31:0] alu_out;
 	input [3:0] control;
     input [4:0] shift_amount;
 	always @ (*) begin
@@ -417,7 +426,7 @@ module ALU (inA, inB, shift_amount, alu_out, zero, control);
             end
             // slti
             4'b0010: begin
-                alu_out <= ($signed(inA) < $signed(inB)) ? 64'b1: 64'b0;
+                alu_out <= ($signed(inA) < $signed(inB)) ? 32'b1: 32'b0;
                 // zero <= 0;
             end
             // slli
