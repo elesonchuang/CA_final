@@ -207,7 +207,7 @@ module CHIP(clk,
 // PC = PC + 4 or result from the jal, beq immediate 
     always @(*) begin
         // PC_nxt =jump: Jump_destination | Branch & Zero: Branch_destination | otherwise:PC+4
-        PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm :PC + 32'd4 ));
+        PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm ):(PC + 32'd4 ));
     end
 //=================EX stage==================//
     assign AluInb = (Alusrc)?(imm):(rs2_data);
