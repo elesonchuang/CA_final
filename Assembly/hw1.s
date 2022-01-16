@@ -6,11 +6,6 @@
 
 FUNCTION:
     # Todo: Define your own function in HW1
-    addi t0, x0, 0
-    add t0, t0, a0
-    jal x1, recursive
-    jal x0, result
-recursive:  
     # Save return address and n on stack
     addi sp, sp, -8
     sw x1, 4(sp)
@@ -24,7 +19,7 @@ recursive:
 
 L1:
     srli a0, a0, 1# n = n/2
-    jal x1, recursive# Call recursive T(n/2)
+    jal x1, FUNCTION# Call recursive T(n/2)
     lw a0, 0(sp)# restore caller's n
     lw x1, 4(sp)# restore caller's return address
     addi sp, sp, 8# Pop stack
