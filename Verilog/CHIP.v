@@ -137,6 +137,19 @@ module CHIP(clk,
                 regWrite = 0;
                 imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
             end
+            //BGE
+            7'b1100011:begin
+                ALUOp = 4'b1000;
+                AUIPC = 0;
+                Branch = 1;
+                Jump = 2'd0; 
+                AluSrc = 0;
+                MemRead = 0;
+                MemWrite = 0;
+                MemtoReg = 0;
+                regWrite = 0;
+                imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
+            end
             //LW
             7'b0000011:begin
                 ALUOp = 4'b0000;
