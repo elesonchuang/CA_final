@@ -1,21 +1,25 @@
 .data
-    n: .word 10
-    
+n: .word 10
 .text
 .globl __start
 
 FUNCTION:
     # Todo: Define your own function in HW1
-    addi t0, x0, 0
-    add t0, t0, a0
+#    addi t0, x0, 0
+ #   add t0, t0, a0
+addi sp, sp, -8
+sw x1, 4(sp)
     jal x1, recursive
-    jal x0, result
+    #addi a0, x0, 10
+    add x10, x5, x0
+    lw x1, 4(sp)
+    jalr x0, 0(x1)
+    #ecall
 recursive:  
     # Save return address and n on stack
     addi sp, sp, -8
     sw x1, 4(sp)
     sw a0, 0(sp)
-
     addi t2, x0, 1# Set tem2 to 1
     bgt a0, t2, L1# If n > tem2, go to L1
     addi t0, x0, 4# Else, set T(1) to 4 
@@ -43,3 +47,12 @@ __start:
     sw   x10, 4(t0)
     addi a0,x0,10
     ecall
+    
+
+  # Prints the result in t0
+ #   flw f0, 5(x3)
+  #  addi a0, x0, 1
+  #  add a1, x0, t0
+  #  ecall
+    
+  # Ends the program with status code 0
