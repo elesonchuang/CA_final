@@ -198,10 +198,16 @@ module CHIP(clk,
     assign PCSrc = (Branch & Zero);  
     case (Jump)
         //jal
-        2'd1: assign Jump_destination = PC + imm;
+        2'd1: begin 
+            assign Jump_destination = PC + imm;
+        end
         //jalr
-        2'd2: assign Jump_destination = rs1_data + imm;
-        default: assign Jump_destination = 32'd0;
+        2'd2: begin
+            assign Jump_destination = rs1_data + imm;
+        end
+        default: begin
+            assign Jump_destination = 32'd0;
+        end
     endcase
 //=================IF stage==================//
 // PC = PC + 4 or result from the jal, beq immediate 
