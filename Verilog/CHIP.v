@@ -210,7 +210,7 @@ module CHIP(clk,
         PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm ):(PC + 32'd4 ));
     end
 //=================EX stage==================//
-    assign AluInb = (Alusrc)?(imm):(rs2_data);
+    assign AluInb = (AluSrc)?(imm):(rs2_data);
     ALU alu(
         .inA(rs1_data), 
         .inB(AluInb), 
@@ -223,7 +223,7 @@ module CHIP(clk,
 
     assign mem_addr_D = AluResult;//Address of data/stack memory
     assign mem_wdata_D = rs2_data;//Data written to data/stack memory
-    assign mem_wen_D = ((MemWrite)?(1):((MemRead)?0:Z));
+    assign mem_wen_D = MemWrite;
 
 //=================WB stage==================//
     assign rd_data = (Jump)? (PC + 32'd4):((MemtoReg)?(mem_rdata_D):(AluResult));//mem_rdata_D:Data read from data/stack memory
