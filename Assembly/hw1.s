@@ -13,6 +13,7 @@ sw x1, 4(sp)
     #addi a0, x0, 10
     add x10, x5, x0
     lw x1, 4(sp)
+    add x10, x5, x0
     jalr x0, 0(x1)
     #ecall
 recursive:  
@@ -48,11 +49,3 @@ __start:
     addi a0,x0,10
     ecall
     
-
-  # Prints the result in t0
- #   flw f0, 5(x3)
-  #  addi a0, x0, 1
-  #  add a1, x0, t0
-  #  ecall
-    
-  # Ends the program with status code 0

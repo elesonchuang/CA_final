@@ -1,5 +1,5 @@
 .data
-n: .word 3
+n: .word 8
 .text
 .globl __start
 
