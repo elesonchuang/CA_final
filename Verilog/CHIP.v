@@ -134,7 +134,7 @@ module CHIP(clk,
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //SW
-            7'b0100011:begin:
+            7'b0100011:begin
                 Branch = 0;
                 Jump = 2'd0; 
                 Alusrc = 1;
