@@ -25,7 +25,7 @@ module CHIP(clk,
     // Exception: You may change wire to reg //
     reg    [31:0] PC          ;              //
     reg   [31:0] PC_nxt      ;               //
-    wire          regWrite    ;              //
+    reg          regWrite    ;              //
     reg   [4:0] rs1, rs2, rd;                //
     wire   [31:0] rs1_data    ;              //
     wire   [31:0] rs2_data    ;              //
@@ -43,14 +43,19 @@ module CHIP(clk,
     //ALU
     wire Zero;
     // control output
-    reg Branch, AluSrc, MemRead, MemWrite, MemtoReg;
+    reg Branch, AluSrc, MemRead, MemWrite, MemtoReg, AUIPC;
     reg [2:0] Jump;
     reg [3:0] ALUOp;
     // other wire
-    wire [31:0] Jump_destination; //the PC address to jump
+    reg [31:0] Jump_destination; //the PC address to jump
     reg [31:0] imm; // immediate
-    wire AluInb,shamt; // ALU input 2 & slli/srli shift amount
+    wire [31:0] AluIna, AluInb;
+    wire [4:0] shamt; // ALU input 2 & slli/srli shift amount
     wire [31:0] AluResult;
+    wire [63:0] mulout;
+    reg [1:0]hold, hold_nxt;
+    wire ready;
+    wire valid;
 
     //---------------------------------------//
     // Do not modify this part!!!            //
@@ -82,6 +87,7 @@ module CHIP(clk,
         case (opcode)
             //AUIPC
             7'b0010111:begin
+                AUIPC = 1;
                 Branch = 0;
                 Jump = 2'd0;
                 ALUOp = 4'b0000;
@@ -94,6 +100,9 @@ module CHIP(clk,
             end 
             //JAL
             7'b1101111:begin
+                ALUOp = 4'b0000;
+                AluSrc = 0;
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd1;
                 MemRead = 0;
@@ -104,6 +113,9 @@ module CHIP(clk,
             end
             //JALR
             7'b1100111:begin
+                ALUOp = 4'b0000;
+                AluSrc = 1;
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd2; 
                 MemRead = 0;
@@ -114,16 +126,21 @@ module CHIP(clk,
             end
             //BEQ
             7'b1100011:begin
+                ALUOp = 4'b1000;
+                AUIPC = 0;
                 Branch = 1;
                 Jump = 2'd0; 
                 AluSrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
                 regWrite = 0;
                 imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
             end
             //LW
             7'b0000011:begin
+                ALUOp = 4'b0000;
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd0;
                 AluSrc = 1; 
@@ -135,16 +152,20 @@ module CHIP(clk,
             end
             //SW
             7'b0100011:begin
+                ALUOp = 4'b0000;
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd0; 
                 AluSrc = 1;
                 MemRead = 0;
+                MemtoReg = 0;
                 MemWrite = 1;
                 regWrite = 0;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             end
             //SLTI , ADDI
             7'b0010011:begin
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd0;
                 AluSrc = 1; 
@@ -162,87 +183,132 @@ module CHIP(clk,
                     3'b010:begin
                         ALUOp = 4'b0010;
                     end
+                    default: ALUOp = 4'b0000;
                 endcase
             end
             //ADD,SUB
             7'b0110011:begin
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd0; 
                 AluSrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                regWrite = 1;
                 imm = 32'b0;
                 case (func7)
                     //add
                     7'b0:begin
                         ALUOp = 4'b0000;
+                        regWrite = 1;
                     end
                     //sub
                     7'b0100000:begin
                         ALUOp = 4'b1000;
+                        regWrite = 1;
+                    end
+                    //mul
+                    7'b1:begin
+                        ALUOp = 4'b1111;
+                        regWrite = (hold == 2'd2 && ready) ? (1):(0);
+                    end
+                    default:begin 
+                        ALUOp = 4'b0000;
+                        regWrite = 0;
                     end
                 endcase
             end
             default: begin
+                ALUOp = 4'b0000;
+                AUIPC = 0;
                 Branch = 0;
                 Jump = 2'd0;
+                AluSrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
+                MemtoReg = 0;
+                regWrite = 0;
                 imm = 32'b0;
             end
         endcase
     end
+    assign valid = (ALUOp == 4'b1111 && hold == 2'd0);
     assign ALU_ctrl = (Branch)? 4'b1000 : ((MemRead || MemWrite)? 4'b0000 : ALUOp);
     assign PCSrc = (Branch & Zero);  
-    case (Jump)
-        //jal
-        2'd1: begin 
-            assign Jump_destination = PC + imm;
-        end
-        //jalr
-        2'd2: begin
-            assign Jump_destination = rs1_data + imm;
-        end
-        default: begin
-            assign Jump_destination = 32'd0;
-        end
-    endcase
+    always@(*)begin
+        case (Jump)
+            //jal
+            2'd1: begin 
+                Jump_destination = PC + imm;
+            end
+            //jalr
+            2'd2: begin
+                Jump_destination = rs1_data + imm;
+            end
+            default: begin
+                Jump_destination = 32'd0;
+            end
+        endcase
+    end
 //=================IF stage==================//
 // PC = PC + 4 or result from the jal, beq immediate 
+always @(*) begin
+
+case (hold)
+2'd2: begin
+    if (ready) begin 
+        hold_nxt = 2'd1;
+    end
+    else hold_nxt = 2'd2;
+end
+2'd1:begin 
+    hold_nxt = 2'd0;
+end
+2'd0:begin 
+    if (valid) hold_nxt = 2'd2;
+    else hold_nxt = 2'd0;
+end
+default:hold_nxt = 2'd0;
+endcase
+
+end
     always @(*) begin
-        // PC_nxt =jump: Jump_destination | Branch & Zero: Branch_destination | otherwise:PC+4
-        PC_nxt = (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm ):(PC + 32'd4 ));
+        // PC_nxt =hold:PC | jump: Jump_destination | Branch & Zero: Branch_destination | otherwise:PC+4
+        PC_nxt =(hold_nxt)?(PC):( (Jump) ? (Jump_destination): ((PCSrc) ? (PC + imm ):(PC + 32'd4 )));
     end
 //=================EX stage==================//
+    assign AluIna = (AUIPC)?(PC):(rs1_data);
     assign AluInb = (AluSrc)?(imm):(rs2_data);
     ALU alu(
-        .inA(rs1_data), 
+        .inA(AluIna), 
         .inB(AluInb), 
         .shift_amount(shamt), 
         .alu_out(AluResult), 
         .zero(Zero), 
         .control(ALU_ctrl)
     );
+    mulDiv mul(.clk(clk), .rst_n(rst_n), .valid(valid), .ready(ready), .mode(ALU_ctrl), .in_A(AluIna), .in_B(AluInb), .out(mulout));
 //=================Mem stage=================//
 
-    assign mem_addr_D = AluResult;//Address of data/stack memory
+    assign mem_addr_D = (ready) ? mulout[31:0]:AluResult;//Address of data/stack memory
     assign mem_wdata_D = rs2_data;//Data written to data/stack memory
     assign mem_wen_D = MemWrite;
 
 //=================WB stage==================//
-    assign rd_data = (Jump)? (PC + 32'd4):((MemtoReg)?(mem_rdata_D):(AluResult));//mem_rdata_D:Data read from data/stack memory
-
+    assign rd_data = (Jump)? (PC + 32'd4):((MemtoReg)?(mem_rdata_D):((ready)? (mulout): (AluResult)));//mem_rdata_D:Data read from data/stack memory
+    assign mem_addr_I = PC;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             PC <= 32'h00010000; // Do not modify this value!!!
+            //hold_nxt <= 0;
+            hold <= 0;
         end
         else begin
             PC <= PC_nxt;
-            assign mem_addr_I = PC;
+            hold <= hold_nxt;
         end
     end
+    
 endmodule
 
 module reg_file(clk, rst_n, wen, a1, a2, aw, d, q1, q2);
@@ -293,7 +359,7 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
     // Todo: your HW2
     input         clk, rst_n;
     input         valid;
-    input  [1:0]  mode; // mode: 0: mulu, 1: divu, 2: and, 3: or
+    input  [3:0]  mode; // mode: 1111: mulu, 1110: divu, 1100: and, 1010: or
     output        ready;
     input  [31:0] in_A, in_B;
     output [63:0] out;
@@ -325,10 +391,11 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
             IDLE: begin
                 if (valid) begin
                     case (mode)
-                        2'd0 : state_nxt = MUL;
-                        2'd1 : state_nxt = DIV;
-                        2'd2 : state_nxt = AND;
-                        2'd3 : state_nxt = OR;
+                        4'b1111 : state_nxt = MUL;
+                        4'b1110 : state_nxt = DIV;
+                        4'b1100 : state_nxt = AND;
+                        4'b1010 : state_nxt = OR;
+                        default:state_nxt = IDLE;
                     endcase
                 end
                 else state_nxt = IDLE;
@@ -406,23 +473,24 @@ module mulDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
             IDLE: begin
                 if (valid) begin
                     case (mode)
-                        2'd0 :begin 
+                        4'b1111 :begin 
                             shreg_nxt[31:0] = in_A;//state_nxt = MUL
                             shreg_nxt[63:32] = 0;
                         end
-                        2'd1 :begin 
+                        4'b1110 :begin 
                             shreg_nxt[0] = 0;
                             shreg_nxt[32:1] = in_A;//state_nxt = DIV
                             shreg_nxt[63:33] = 0;
                         end
-                        2'd2 :begin 
+                        4'b1100 :begin 
                             shreg_nxt[31:0] = in_A;//state_nxt = AND
                             shreg_nxt[63:32] = 0;
                         end
-                        2'd3 :begin 
+                        4'b1010 :begin 
                             shreg_nxt[31:0] = in_A;//state_nxt = OR
                             shreg_nxt[63:32] = 0;
                         end
+                        default shreg_nxt[63:0] = shreg[63:0];
                     endcase
                 end
                 else shreg_nxt[63:0] = 0;
@@ -456,11 +524,12 @@ module ALU (inA, inB, shift_amount, alu_out, zero, control);
 	input [3:0] control;
     input [4:0] shift_amount;
 	always @ (*) begin
-        zero = 1'b0;
+        
         case (control) // instruction[30, 14-12]
             //add
             4'b0000:begin  
                 alu_out <= inA + inB; 
+                zero <= 1'b0;
             end
             // sub and beq
             4'b1000:begin 
@@ -470,18 +539,21 @@ module ALU (inA, inB, shift_amount, alu_out, zero, control);
             // slti
             4'b0010: begin
                 alu_out <= ($signed(inA) < $signed(inB)) ? 32'b1: 32'b0;
-                // zero <= 0;
+                zero <= 0;
             end
             // slli
             4'b0001: begin
                 alu_out <= inA << shift_amount;
+                zero <= 1'b0;
             end
             // srli
             4'b0101: begin
                 alu_out <= inA >> shift_amount;
+                zero <= 1'b0;
             end
             default:begin 
                 alu_out <= 32'b0; 
+                zero <= 1'b0;
             end
         endcase
 	end
