@@ -85,11 +85,11 @@ module CHIP(clk,
                 Branch = 0;
                 Jump = 2'd0;
                 ALUOp = 4'b0000;
-                Alusrc = 1;
+                AluSrc = 1;
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = {mem_rdata_I[31:12], 12'b0};
             end 
             //JAL
@@ -99,7 +99,7 @@ module CHIP(clk,
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = {{11{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21], 1'b0};
             end
             //JALR
@@ -109,49 +109,49 @@ module CHIP(clk,
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //BEQ
             7'b1100011:begin
                 Branch = 1;
                 Jump = 2'd0; 
-                Alusrc = 0;
+                AluSrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
-                RegWrite = 0;
+                regWrite = 0;
                 imm = {{19{mem_rdata_I[31]}}, mem_rdata_I[31], mem_rdata_I[7], mem_rdata_I[30:25],mem_rdata_I[11:8], 1'b0};
             end
             //LW
             7'b0000011:begin
                 Branch = 0;
                 Jump = 2'd0;
-                Alusrc = 1; 
+                AluSrc = 1; 
                 MemRead = 1;
                 MemWrite = 0;
                 MemtoReg = 1;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
             //SW
             7'b0100011:begin
                 Branch = 0;
                 Jump = 2'd0; 
-                Alusrc = 1;
+                AluSrc = 1;
                 MemRead = 0;
                 MemWrite = 1;
-                RegWrite = 0;
+                regWrite = 0;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             end
             //SLTI , ADDI
             7'b0010011:begin
                 Branch = 0;
                 Jump = 2'd0;
-                Alusrc = 1; 
+                AluSrc = 1; 
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
                 case (func3)
                     //addi
@@ -168,11 +168,11 @@ module CHIP(clk,
             7'b0110011:begin
                 Branch = 0;
                 Jump = 2'd0; 
-                Alusrc = 0;
+                AluSrc = 0;
                 MemRead = 0;
                 MemWrite = 0;
                 MemtoReg = 0;
-                RegWrite = 1;
+                regWrite = 1;
                 imm = 32'b0;
                 case (func7)
                     //add
