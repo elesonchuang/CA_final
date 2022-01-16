@@ -18,6 +18,7 @@ FUNCTION:
     bge a0, t2, L1# If n >= tem2, go to L1
     addi t0, x0, 4# Else, set T(1) to 4 
     addi sp, sp, 8# Pop stack
+    addi x10,t0,0
     jalr x0, 0(x1)# Return
 
 L1:
