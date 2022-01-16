@@ -1,4 +1,3 @@
-// Your code
 module CHIP(clk,
             rst_n,
             // For mem_D
@@ -576,4 +575,3 @@ module ALU (inA, inB, shift_amount, alu_out, zero, control);
         endcase
 	end
 endmodule
-
