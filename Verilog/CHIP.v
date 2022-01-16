@@ -1,4 +1,3 @@
-// Your code
 module CHIP(clk,
             rst_n,
             // For mem_D
@@ -124,7 +123,7 @@ module CHIP(clk,
                 regWrite = 1;
                 imm = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             end
-            //BEQ
+            //BEQ, BLT
             7'b1100011:begin
                 ALUOp = 4'b1000;
                 AUIPC = 0;
@@ -196,6 +195,10 @@ module CHIP(clk,
                     3'b010:begin
                         ALUOp = 4'b0010;
                     end
+                    //slli
+                    3'b001:ALUOp = 4'b0001;
+                    //srli
+                    3'b101:ALUOp = 4'b0101;
                     default: ALUOp = 4'b0000;
                 endcase
             end
@@ -247,7 +250,8 @@ module CHIP(clk,
     end
     assign valid = (ALUOp == 4'b1111 && hold == 2'd0);
     assign ALU_ctrl = (Branch)? 4'b1000 : ((MemRead || MemWrite)? 4'b0000 : ALUOp);
-    assign PCSrc = (Branch & Zero);  
+    assign PCSrc = (Branch & Zero && func3 == 3'b000)||(Branch & AluResult[31] && func3 == 3'b100);// func3 = 000 => BEQ, func3 = 100 => BLT
+    assign shamt = mem_rdata_I[24:20];
     always@(*)begin
         case (Jump)
             //jal
@@ -303,7 +307,7 @@ end
     mulDiv mul(.clk(clk), .rst_n(rst_n), .valid(valid), .ready(ready), .mode(ALU_ctrl), .in_A(AluIna), .in_B(AluInb), .out(mulout));
 //=================Mem stage=================//
 
-    assign mem_addr_D = (ready) ? mulout[31:0]:AluResult;//Address of data/stack memory
+    assign mem_addr_D =  (MemRead)? (AluResult):((ready) ? mulout[31:0]:AluResult);//Address of data/stack memory
     assign mem_wdata_D = rs2_data;//Data written to data/stack memory
     assign mem_wen_D = MemWrite;
 
@@ -571,4 +575,3 @@ module ALU (inA, inB, shift_amount, alu_out, zero, control);
         endcase
 	end
 endmodule
-
